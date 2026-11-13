@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>哈滷霸 POS 系統 (Windows XP Chrome49 大字單聯版)</title>
+    <style>
+        /* 1. 禁用文字選取 (防止觸控螢幕點擊時選取文字) */
+        * { 
+            box-sizing: border-box; 
+            font-family: Arial, "Microsoft JhengHei", "微軟正黑體", sans-serif; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* 允許輸入框可以選取文字與輸入 */
+        input {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+        }
+
+        /* 2. 極致加粗滾動條 (寬度加倍至 28px，觸控更好按) */
+        ::-webkit-scrollbar {
+            width: 28px;
+            height: 28px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #cbd5e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #718096;
+            border-radius: 10px;
+            border: 4px solid #cbd5e0;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a5568;
+        }
+
+        body { margin: 8px; background-color: #f4f4f4; color: #333; font-size: 16px; }
+        
+        /* 傳統雙欄版面 (相容 Chrome 49) */
+        .main-container { width: 100%; clear: both; }
+        .menu-section { width: 58%; float: left; border: 1px solid #ccc; padding: 8px; border-radius: 8px; background: #fdfdfd; height: 96vh; overflow-y: auto; }
+        .cart-section { width: 41%; float: right; border: 2px solid #333; padding: 10px; border-radius: 8px; background: #fff; height: 96vh; overflow-y: hidden; display: flex; flex-direction: column; }
+        
+        .duck-star { display: none; }
+        .cate-title { font-size: 20px; font-weight: bold; background: #4a5568; color: white; padding: 6px 10px; margin: 10px 0 6px 0; border-radius: 4px; clear: both; }
+        
+        /* 傳統 Float 網格按鈕 (相容 Chrome 49) */
+        .btn-grid { width: 100%; clear: both; margin-bottom: 5px; }
+        .btn-grid:after { content: ""; display: table; clear: both; }
+        
+        .item-btn { 
+            width: 31.33%; 
+            float: left; 
+            margin: 1%;
+            padding: 12px 2px; 
+            font-size: 18px; 
+            font-weight: bold;
+            background-color: #f8f9fa; 
+            border: 2px solid #cbd5e0; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            text-align: center;
+        }
+        .item-btn:hover, .item-btn:active { background-color: #cbd5e0; }
+        
+        /* 特殊按鈕樣式 */
+        .patch-btn { background-color: #fefcbf; border-color: #ecc94b; color: #744210; }
+        .taste-btn { background-color: #feebc8; border-color: #fbd38d; color: #7b341e; font-size: 18px; }
+        .combo-btn { background-color: #e9d8fd; border-color: #b794f4; color: #441239; }
+        .duck-blood-btn { background-color: #feebc8; border-color: #dd6b20; color: #9c4221; }
+
+        /* 外帶/內用切換 */
+        .order-type-toggle { width: 100%; margin-bottom: 6px; clear: both; }
+        .order-type-toggle:after { content: ""; display: table; clear: both; }
+        .type-btn {
+            width: 48%;
+            float: left;
+            margin: 1%;
+            padding: 8px;
+            font-size: 22px;
+            font-weight: bold;
+            border: 2px solid #cbd5e0;
+            background: #edf2f7;
+            color: #4a5568;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .type-btn.active { background: #3182ce; color: white; border-color: #2b6cb0; }
+
+        .custom-input { border-top: 2px dashed #ccc; padding-top: 10px; margin-top: 15px; clear: both; }
+        .custom-input input { padding: 8px; font-size: 18px; width: 35%; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* 鴨水血看板與看板區塊 */
+        .dashboard-box { background-color: #edf2f7; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; }
+        .order-no-box { font-size: 18px; font-weight: bold; color: #2d3748; float: left; }
+        .daily-sales-box { font-size: 18px; font-weight: bold; color: #2b6cb0; float: right; }
+        .clear-float { clear: both; }
+        
+        .duck-blood-tracker {
+            background-color: #fffaf0;
+            border: 2px solid #fbd38d;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #9c4221;
+        }
+        .reset-duck-btn {
+            background: #edd6b8;
+            border: 1px solid #c07d3e;
+            color: #7b341e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            float: right;
+        }
+
+        .cart-header-actions { text-align: right; margin-bottom: 4px; }
+
+        /* 3. 購物車滾動區：改用 flex:1 自動撐滿剩餘空間，避免固定高度算錯把下方按鈕擠出畫面外 */
+        .cart-container { 
+            flex: 1 1 auto; 
+            min-height: 0; 
+            overflow-y: auto; 
+            margin-bottom: 6px; 
+            border: 1px solid #cbd5e0; 
+            border-radius: 4px;
+            background: #fff;
+        }
+        .cart-table { width: 100%; border-collapse: collapse; }
+        .cart-table th { text-align: left; padding: 6px 4px; border-bottom: 2px solid #333; background: #edf2f7; font-size: 18px; position: sticky; top: 0; }
+        
+        /* 商品明細文字加大至 20px 加粗 */
+        .cart-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #edf2f7; font-size: 20px; font-weight: bold; }
+        
+        .qty-btn { padding: 2px 10px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 4px; border: 1px solid #a0aec0; background: #edf2f7; }
+        .del-btn { padding: 2px 6px; font-size: 14px; font-weight: bold; color: #e53e3e; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 4px; cursor: pointer; }
+
+        .total { font-size: 2em; color: #e53e3e; font-weight: bold; margin: 4px 0; text-align: right; }
+        .btn { padding: 10px; font-size: 18px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
+        
+        .btn-group { width: 100%; }
+        .btn-group:after { content: ""; display: table; clear: both; }
+        .print-btn { width: 63%; float: left; background: #38a169; color: white; height: 50px; font-size: 1.3em; }
+        .daily-report-btn { width: 34%; float: right; background: #d69e2e; color: white; height: 50px; font-size: 1.1em; }
+        .clear-btn { background: #e53e3e; color: white; padding: 4px 8px; font-size: 15px; }
+
+        /* 客製化選項樣式 (同一行並排與自動換行) */
+        .custom-options-wrapper {
+            line-height: 1.4;
+            word-wrap: break-word;
+            word-break: break-all;
+            margin-top: 4px;
+        }
+        .free-tag-item {
+            display: inline-block;
+            margin-right: 6px;
+            margin-bottom: 2px;
+            white-space: normal;
+        }
+        /* 客製化調味標籤加大至 22px 超粗體 */
+        .free-tag {
+            font-size: 22px !important;
+            font-weight: 900 !important;
+            color: #7b341e;
+            background: #feebc8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #fbd38d;
+        }
+
+        #daily-report-print, .print-ticket-stub, .print-header, .print-footer { display: none; }
+
+        /* 熱感紙 80mm 列印相容樣式 */
+        @media print {
+            @page { 
+                size: 80mm auto; 
+                margin: 0mm !important; 
+            }
+            html, body { 
+                width: 76mm; 
+                margin: 0 auto !important; 
+                padding: 0 !important; 
+                background: #fff; 
+                color: #000 !important; 
+            }
+
+            .menu-section, .btn, .qty-btn, .del-btn, .clear-btn, .custom-input, .btn-group, .order-type-toggle, .cart-header-actions, .duck-blood-tracker, .print-ticket-stub { 
+                display: none !important; 
+            }
+
+            .cart-section { 
+                border: none; 
+                width: 100%; 
+                padding: 0; 
+                margin: 0; 
+                float: none; 
+                height: auto !important; 
+            }
+
+            .cart-container { 
+                height: auto !important; 
+                min-height: 0 !important; 
+                overflow: visible !important; 
+                border: none !important; 
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .cart-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 0;
+                page-break-inside: auto;
+            }
+            .cart-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            .cart-container, .cart-section {
+                page-break-inside: auto;
+                overflow: visible !important;
+            }
+            
+            .cart-table th { 
+                font-size: 20px !important; 
+                padding: 4px 0; 
+                border-bottom: 2px solid #000; 
+            }
+            .cart-table td { 
+                font-size: 24px !important; 
+                font-weight: bold !important; 
+                padding: 6px 0; 
+                color: #000 !important; 
+                border-bottom: 1px dashed #000; 
+            }
+            
+            /* 鴨水血：列印時以粗上下框線 + 放大字 + 星號標示，一眼可辨 */
+            .duck-row td {
+                font-size: 28px !important;
+                font-weight: 900 !important;
+                border-top: 3px solid #000 !important;
+                border-bottom: 3px solid #000 !important;
+                padding: 8px 0 !important;
+            }
+            .duck-row .duck-star { display: inline !important; }
+
+            .free-tag {
+                border: none !important;
+                background: transparent !important;
+                padding: 0 4px 0 0 !important;
+                font-size: 28px !important;
+                font-weight: 900 !important;
+                color: #000 !important;
+                -webkit-text-stroke: 0.6px #000;
+            }
+            .custom-options-wrapper {
+                line-height: 1.3;
+                margin-top: 2px;
+            }
+            
+            .total { 
+                font-size: 32px !important; 
+                color: #000 !important; 
+                font-weight: 900 !important; 
+                margin-top: 6px; 
+                border-top: 2px solid #000; 
+                padding-top: 4px; 
+                text-align: right; 
+            }
+
+            .print-header { 
+                display: block !important; 
+                text-align: center; 
+                font-size: 22px !important; 
+                font-weight: bold; 
+                margin-bottom: 6px; 
+                padding-top: 0 !important; 
+            }
+            .print-big-number {
+                font-size: 42px !important;
+                font-weight: 900 !important;
+                line-height: 1.1;
+                margin-bottom: 4px;
+                border-bottom: 3px solid #000;
+                padding-bottom: 4px;
+            }
+            .print-footer { 
+                display: block !important; 
+                text-align: center; 
+                font-size: 18px !important; 
+                margin-top: 10px; 
+                font-weight: bold;
+            }
+            .dashboard-box { 
+                background: transparent; 
+                text-align: center; 
+                font-size: 22px !important; 
+                padding: 4px 0; 
+                border-bottom: 2px solid #000; 
+            }
+            .order-no-box { float: none; font-size: 20px !important; }
+            .daily-sales-box { display: none; }
+
+            body.printing-daily-report .cart-section { display: none !important; }
+            body.printing-daily-report #daily-report-print { display: block !important; text-align: center; padding: 0; }
+            body.printing-daily-report #daily-report-print h2 { font-size: 22px; margin: 4px 0; }
+            body.printing-daily-report #daily-report-print p { font-size: 18px; margin: 4px 0; text-align: left; }
+            body.printing-daily-report #daily-report-print .report-divider { border-top: 2px dashed #000; margin: 6px 0; }
+            
+            .report-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            .report-table th, .report-table td { font-size: 18px; text-align: left; padding: 3px 0; border-bottom: 1px dashed #000; }
+            .report-table th.num, .report-table td.num { text-align: right; }
+        }
+
+        @media print {
+            .cart-section, .cart-container {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                min-height: 0 !important;
+                height: auto !important;
+            }
+            .cart-table {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                border-spacing: 0 !important;
+            }
+            .cart-table th, .cart-table td {
+                line-height: 1.2 !important;
+            }
+            .cart-total, .total-row, .cart-summary, .checkout-summary {
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <!-- 左邊：點餐選單 -->
+    <div class="menu-section">
+        <h2 style="margin: 0 0 10px 0;">哈滷霸點餐選單</h2>
+
+        <div class="cate-title">綜合套餐類</div>
+        <div class="btn-grid">
+            <button class="item-btn combo-btn" onclick="addToCart('綜合 $100', 100)">綜合 $100</button>
+            <button class="item-btn combo-btn" onclick="addToCart('綜合 $200', 200)">綜合 $200</button>
+            <button class="item-btn combo-btn" onclick="addToCart('綜合 $300', 300)">綜合 $300</button>
+        </div>
+
+        <div class="cate-title">肉類 / 內臟類</div>
+        <div class="btn-grid">
+            <button class="item-btn patch-btn" onclick="addToCart('補價', 5)">補價 $5</button>
+            <button class="item-btn patch-btn" onclick="addToCart('補價', 10)">補價 $10</button>
+            <button class="item-btn" onclick="addToCart('雞爪', 20)">雞爪 $20</button>
+            <button class="item-btn" onclick="addToCart('梅花肉', 40)">梅花肉 $40</button>
+            <button class="item-btn" onclick="addToCart('溫體豬肉', 40)">溫體豬肉 $40</button>
+            <button class="item-btn" onclick="addToCart('雞胸肉片', 40)">雞胸肉片 $40</button>
+            <button class="item-btn" onclick="addToCart('臉頰肉', 40)">臉頰肉 $40</button>
+            <button class="item-btn" onclick="addToCart('大腸', 40)">大腸 $40</button>
+            <button class="item-btn" onclick="addToCart('小腸', 40)">小腸 $40</button>
+            <button class="item-btn" onclick="addToCart('鴨胗', 40)">鴨胗 $40</button>
+            <button class="item-btn" onclick="addToCart('脆管', 40)">脆管 $40</button>
+            <button class="item-btn" onclick="addToCart('豬耳朵', 30)">豬耳朵 $30</button>
+            <button class="item-btn" onclick="addToCart('豬頭皮', 30)">豬頭皮 $30</button>
+            <button class="item-btn" onclick="addToCart('手工米血', 25)">手工米血 $25</button>
+            <button class="item-btn" onclick="addToCart('豬皮', 20)">豬皮 $20</button>
+            <button class="item-btn duck-blood-btn" onclick="addToCart('鴨水血', 20)">鴨水血 $20<br><small style="font-size:12px;">(已售 <span id="duck-sold-btn-num">0</span>)</small></button>
+            <button class="item-btn" onclick="addToCart('花生', 20)">花生 $20</button>
+            <button class="item-btn" onclick="addToCart('鳥蛋', 20)">鳥蛋 $20</button>
+            <button class="item-btn" onclick="addToCart('海帶', 15)">海帶 $15</button>
+        </div>
+
+        <div class="cate-title">火鍋料類</div>
+        <div class="btn-grid">
+            <button class="item-btn" onclick="addToCart('德式香腸', 30)">德式香腸 $30</button>
+            <button class="item-btn" onclick="addToCart('雞肉香腸', 30)">雞肉香腸 $30</button>
+            <button class="item-btn" onclick="addToCart('蘭花干', 35)">蘭花干 $35</button>
+            <button class="item-btn" onclick="addToCart('黃金魚板', 20)">黃金魚板 $20</button>
+            <button class="item-btn" onclick="addToCart('石斑條', 20)">石斑條 $20</button>
+            <button class="item-btn" onclick="addToCart('龍蝦棒', 20)">龍蝦棒 $20</button>
+            <button class="item-btn" onclick="addToCart('芋粿芋', 25)">芋粿芋 $25</button>
+            <button class="item-btn" onclick="addToCart('大貢丸', 20)">大貢丸 $20</button>
+            <button class="item-btn" onclick="addToCart('小貢丸', 20)">小貢丸 $20</button>
+            <button class="item-btn" onclick="addToCart('黑輪條', 10)">黑輪條 $10</button>
+            <button class="item-btn" onclick="addToCart('魚包蛋', 25)">魚包蛋 $25</button>
+            <button class="item-btn" onclick="addToCart('龍蝦沙拉', 25)">龍蝦沙拉 $25</button>
+            <button class="item-btn" onclick="addToCart('起司濃球', 25)">起司濃球 $25</button>
+            <button class="item-btn" onclick="addToCart('麻糬燒', 25)">麻糬燒 $25</button>
+            <button class="item-btn" onclick="addToCart('魚豆腐', 25)">魚豆腐 $25</button>
+            <button class="item-btn" onclick="addToCart('花枝丸', 20)">花枝丸 $20</button>
+            <button class="item-btn" onclick="addToCart('鴨肉丸', 20)">鴨肉丸 $20</button>
+            <button class="item-btn" onclick="addToCart('黑輪片', 20)">黑輪片 $20</button>
+            <button class="item-btn" onclick="addToCart('甜不辣', 20)">甜不辣 $20</button>
+            <button class="item-btn" onclick="addToCart('香菇貢丸', 20)">香菇貢丸 $20</button>
+            <button class="item-btn" onclick="addToCart('虱目魚丸', 15)">虱目魚丸 $15</button>
+            <button class="item-btn" onclick="addToCart('蟹肉棒', 15)">蟹肉棒 $15</button>
+            <button class="item-btn" onclick="addToCart('黃金魚蛋', 15)">黃金魚蛋 $15</button>
+            <button class="item-btn" onclick="addToCart('韓式魚板', 25)">韓式魚板 $25</button>
+            <button class="item-btn" onclick="addToCart('起司鑫腸', 20)">起司鑫腸 $20</button>
+            <button class="item-btn" onclick="addToCart('麵輪', 15)">麵輪 $15</button>
+            <button class="item-btn" onclick="addToCart('熱狗', 10)">熱狗 $10</button>
+            <button class="item-btn" onclick="addToCart('鱈魚丸', 5)">鱈魚丸 $5</button>
+        </div>
+
+        <div class="cate-title">豆類</div>
+        <div class="btn-grid">
+            <button class="item-btn" onclick="addToCart('黑豆干', 25)">黑豆干 $25</button>
+            <button class="item-btn" onclick="addToCart('黃豆干', 20)">黃豆干 $20</button>
+            <button class="item-btn" onclick="addToCart('百頁豆腐', 20)">百頁豆腐 $20</button>
+            <button class="item-btn" onclick="addToCart('凍豆腐', 20)">凍豆腐 $20</button>
+            <button class="item-btn" onclick="addToCart('炸豆包', 25)">炸豆包 $25</button>
+            <button class="item-btn" onclick="addToCart('豆皮', 20)">豆皮 $20</button>
+            <button class="item-btn" onclick="addToCart('油條', 20)">油條 $20</button>
+        </div>
+
+        <div class="cate-title">蔬菜類</div>
+        <div class="btn-grid">
+            <button class="item-btn" onclick="addToCart('高麗菜', 25)">高麗菜 $25</button>
+            <button class="item-btn" onclick="addToCart('大陸妹', 25)">大陸妹 $25</button>
+            <button class="item-btn" onclick="addToCart('空心菜', 25)">空心菜 $25</button>
+            <button class="item-btn" onclick="addToCart('花椰菜', 25)">花椰菜 $25</button>
+            <button class="item-btn" onclick="addToCart('四季豆', 25)">四季豆 $25</button>
+            <button class="item-btn" onclick="addToCart('金針菇', 25)">金針菇 $25</button>
+            <button class="item-btn" onclick="addToCart('秀針菇', 25)">秀針菇 $25</button>
+            <button class="item-btn" onclick="addToCart('杏鮑菇', 25)">杏鮑菇 $25</button>
+            <button class="item-btn" onclick="addToCart('木耳', 25)">木耳 $25</button>
+            <button class="item-btn" onclick="addToCart('洋蔥', 20)">洋蔥 $20</button>
+            <button class="item-btn" onclick="addToCart('蘿蔔(菜頭)', 20)">蘿蔔 $20</button>
+            <button class="item-btn" onclick="addToCart('豆芽菜', 20)">豆芽菜 $20</button>
+        </div>
+
+        <div class="cate-title">麵類</div>
+        <div class="btn-grid">
+            <button class="item-btn" onclick="addToCart('冬粉', 25)">冬粉 $25</button>
+            <button class="item-btn" onclick="addToCart('意麵', 20)">意麵 $20</button>
+            <button class="item-btn" onclick="addToCart('蒸煮麵', 25)">蒸煮麵 $25</button>
+            <button class="item-btn" onclick="addToCart('香Q麵', 20)">香Q麵 $20</button>
+            <button class="item-btn" onclick="addToCart('蔬菜麵', 20)">蔬菜麵 $20</button>
+            <button class="item-btn" onclick="addToCart('科學麵', 20)">科學麵 $20</button>
+            <button class="item-btn" onclick="addToCart('廣式炒麵', 20)">廣式炒麵 $20</button>
+        </div>
+
+        <div class="cate-title">其他</div>
+        <div class="btn-grid">
+            <button class="item-btn" onclick="addToCart('辣椒醬', 150)">辣椒醬 $150</button>
+        </div>
+
+        <div class="cate-title">調味 / 客制選項</div>
+        <div class="btn-grid">
+            <button class="item-btn taste-btn" onclick="addToCart('【一滴辣】', 0)">一滴辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【微微辣】', 0)">微微辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【微辣】', 0)">微辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【小辣】', 0)">小辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【中辣】', 0)">中辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【大辣】', 0)">大辣</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【不要蔥】', 0)">不要蔥</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【不要酸菜】', 0)">不要酸菜</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【乾】', 0)">乾</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【辣另外包】', 0)">辣另外包</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【湯多】', 0)">湯多</button>
+            <button class="item-btn taste-btn" onclick="addToCart('【不要香油】', 0)">不要香油</button>
+        </div>
+
+        <div class="custom-input">
+            <input type="text" id="custom-name" placeholder="自訂品項">
+            <input type="number" id="custom-price" placeholder="金額">
+            <button class="btn" style="background:#3182ce; color:white;" onclick="addCustomItem()">新增</button>
+        </div>
+    </div>
+
+    <!-- 右邊：點單結帳區 -->
+    <div class="cart-section">
+        <div class="order-type-toggle">
+            <button id="btn-takeout" class="type-btn active" onclick="setOrderType('外帶')">🛍️ 外帶</button>
+            <button id="btn-dinein" class="type-btn" onclick="setOrderType('內用')">🍽️ 內用</button>
+        </div>
+
+        <div class="duck-blood-tracker">
+            <span>🩸 鴨水血累計：已售 <span id="duck-sold-tracker-num">0</span> 份</span>
+            <button class="reset-duck-btn" onclick="resetDuckBloodCount()">重置</button>
+            <div class="clear-float"></div>
+        </div>
+
+        <!-- 銷售明細標頭 -->
+        <div class="print-header">
+            <div class="print-big-number">號碼: <span id="print-seq-no">---</span></div>
+            <div>- 哈滷霸 銷售明細 (<span class="print-type-label">外帶</span>) -</div>
+            <div id="print-time" style="font-size: 16px; font-weight: normal;"></div>
+        </div>
+
+        <div class="cart-header-actions">
+            <button class="btn clear-btn" onclick="clearCart()">整單清空</button>
+        </div>
+
+        <div class="dashboard-box">
+            <div class="order-no-box">單號：<span id="order-no-display">---</span> (<span id="type-display">外帶</span>)</div>
+            <div class="daily-sales-box">本日累計：$<span id="daily-sales-display">0</span></div>
+            <div class="clear-float"></div>
+        </div>
+
+        <div class="cart-container">
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>商品</th>
+                        <th>單價</th>
+                        <th style="text-align:center;">數量</th>
+                        <th>小計</th>
+                    </tr>
+                </thead>
+                <tbody id="cart-rows"></tbody>
+            </table>
+        </div>
+
+        <div class="total">總計：$<span id="total-price">0</span></div>
+        
+        <div class="btn-group">
+            <button class="btn print-btn" onclick="checkoutAndPrint()">結帳並印明細</button>
+            <button class="btn daily-report-btn" onclick="printDailyReport()">日結出單</button>
+        </div>
+
+        <div class="print-footer">謝謝惠顧，歡迎再次光臨！</div>
+    </div>
+</div>
+
+<!-- 日結單隱藏 HTML 範本 -->
+<div id="daily-report-print">
+    <h2>=== 哈滷霸 日結報表 ===</h2>
+    <div class="report-divider"></div>
+    <p><strong>日結日期：</strong><span id="rpt-date"></span></p>
+    <p><strong>列印時間：</strong><span id="rpt-time"></span></p>
+    <div class="report-divider"></div>
+    <p><strong>本日總筆數：</strong><span id="rpt-orders">0</span> 筆</p>
+    <p style="padding-left: 10px; font-size: 16px;">└ 外帶：<span id="rpt-takeout-count">0</span> 筆 / 內用：<span id="rpt-dinein-count">0</span> 筆</p>
+    <p style="font-size: 18px; font-weight: bold; margin-top: 4px;"><strong>本日總營業額：</strong>$<span id="rpt-total">0</span></p>
+    <div class="report-divider"></div>
+    <p><strong>平均消費金額：</strong>$<span id="rpt-avg">0</span></p>
+    <p><strong>顧客最高消費：</strong>$<span id="rpt-max">0</span></p>
+    <p><strong>顧客最低消費：</strong>$<span id="rpt-min">0</span></p>
+    <div class="report-divider"></div>
+    
+    <p style="font-weight: bold; margin-bottom: 5px;">【今日品項銷售統計】</p>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>品項</th>
+                <th class="num">數量</th>
+                <th class="num">小計</th>
+            </tr>
+        </thead>
+        <tbody id="rpt-item-rows"></tbody>
+    </table>
+
+    <div class="report-divider"></div>
+    <p style="text-align: center; font-size: 14px; margin-top:12px;">--- 日結完成 辛苦了 ---</p>
+</div>
+
+<script>
+    var memStore = {};
+    function safeGet(k, defVal) {
+        try {
+            var val = localStorage.getItem(k);
+            return val !== null ? val : defVal;
+        } catch(e) {
+            return memStore[k] !== undefined ? memStore[k] : defVal;
+        }
+    }
+    function safeSet(k, val) {
+        try {
+            localStorage.setItem(k, val);
+        } catch(e) {
+            memStore[k] = val;
+        }
+    }
+
+    var cart = [];
+    var currentOrderType = '外帶';
+    var checkoutInProgress = false;
+
+    function setOrderType(type) {
+        currentOrderType = type;
+        document.getElementById('btn-takeout').className = type === '外帶' ? 'type-btn active' : 'type-btn';
+        document.getElementById('btn-dinein').className = type === '內用' ? 'type-btn active' : 'type-btn';
+        document.getElementById('type-display').innerHTML = type;
+        
+        var labels = document.querySelectorAll('.print-type-label');
+        for (var i = 0; i < labels.length; i++) {
+            labels[i].innerHTML = type;
+        }
+    }
+
+    function pad2(n) {
+        n = String(n);
+        return n.length < 2 ? '0' + n : n;
+    }
+
+    function getTodayDateStr() {
+        var today = new Date();
+        var yyyy = today.getFullYear();
+        var mm = String(today.getMonth() + 1);
+        if (mm.length < 2) mm = '0' + mm;
+        var dd = String(today.getDate());
+        if (dd.length < 2) dd = '0' + dd;
+        return yyyy + mm + dd;
+    }
+
+    function checkAndResetDailyData() {
+        var todayStr = getTodayDateStr();
+        var lastDate = safeGet('pos_last_date', '');
+
+        if (lastDate !== todayStr) {
+            safeSet('pos_last_date', todayStr);
+            safeSet('pos_seq', '0');
+            safeSet('pos_daily_sales', '0');
+            safeSet('pos_daily_items', '{}'); 
+            safeSet('pos_order_amounts', '[]'); 
+            safeSet('pos_takeout_count', '0');
+            safeSet('pos_dinein_count', '0');
+        }
+    }
+
+    function updateDuckBloodUI() {
+        var itemStats = {};
+        try { itemStats = JSON.parse(safeGet('pos_daily_items', '{}')); } catch(e){}
+        var duckSold = itemStats['鴨水血'] ? itemStats['鴨水血'].qty : 0;
+        document.getElementById('duck-sold-btn-num').innerHTML = duckSold;
+        document.getElementById('duck-sold-tracker-num').innerHTML = duckSold;
+    }
+
+    function resetDuckBloodCount() {
+        if (confirm("確定要將今日「鴨水血」已售計數歸零嗎？")) {
+            var itemStats = {};
+            try { itemStats = JSON.parse(safeGet('pos_daily_items', '{}')); } catch(e){}
+            if (!itemStats['鴨水血']) {
+                itemStats['鴨水血'] = { qty: 0, sales: 0, price: 20 };
+            } else {
+                itemStats['鴨水血'].qty = 0;
+                itemStats['鴨水血'].sales = 0;
+            }
+            safeSet('pos_daily_items', JSON.stringify(itemStats));
+            updateDuckBloodUI();
+        }
+    }
+
+    function getCurrentSeqStr() {
+        checkAndResetDailyData();
+        var currentSeq = parseInt(safeGet('pos_seq', '0'), 10) + 1;
+        var seqStr = String(currentSeq);
+        while (seqStr.length < 3) seqStr = '0' + seqStr;
+        return seqStr;
+    }
+
+    function commitOrder(amount, currentCart) {
+        checkAndResetDailyData();
+
+        var currentSeq = parseInt(safeGet('pos_seq', '0'), 10) + 1;
+        safeSet('pos_seq', currentSeq.toString());
+
+        var currentSales = parseInt(safeGet('pos_daily_sales', '0'), 10);
+        currentSales += amount;
+        safeSet('pos_daily_sales', currentSales.toString());
+
+        var orderAmounts = [];
+        try { orderAmounts = JSON.parse(safeGet('pos_order_amounts', '[]')); } catch(e){}
+        orderAmounts.push(amount);
+        safeSet('pos_order_amounts', JSON.stringify(orderAmounts));
+
+        if (currentOrderType === '外帶') {
+            var takeoutCount = parseInt(safeGet('pos_takeout_count', '0'), 10) + 1;
+            safeSet('pos_takeout_count', takeoutCount.toString());
+        } else {
+            var dineinCount = parseInt(safeGet('pos_dinein_count', '0'), 10) + 1;
+            safeSet('pos_dinein_count', dineinCount.toString());
+        }
+
+        var itemStats = {};
+        try { itemStats = JSON.parse(safeGet('pos_daily_items', '{}')); } catch(e){}
+        for (var i = 0; i < currentCart.length; i++) {
+            var item = currentCart[i];
+            var key = item.name;
+            if (!itemStats[key]) {
+                itemStats[key] = { qty: 0, sales: 0, price: item.price };
+            }
+            itemStats[key].qty += item.quantity;
+            itemStats[key].sales += item.price * item.quantity;
+        }
+        safeSet('pos_daily_items', JSON.stringify(itemStats));
+        updateDuckBloodUI();
+    }
+
+    function updateDashboardUI() {
+        checkAndResetDailyData();
+        var seqStr = getCurrentSeqStr();
+        var fullOrderNo = getTodayDateStr() + '-' + seqStr;
+        
+        document.getElementById('order-no-display').innerHTML = fullOrderNo;
+        var printSeqElem = document.getElementById('print-seq-no');
+        if(printSeqElem) printSeqElem.innerHTML = seqStr;
+        
+        var sales = safeGet('pos_daily_sales', '0');
+        document.getElementById('daily-sales-display').innerHTML = sales;
+        updateDuckBloodUI();
+    }
+
+    function addToCart(name, price) {
+        if (price === 0) {
+            var exists = false;
+            for (var i = 0; i < cart.length; i++) {
+                if (cart[i].name === name) { exists = true; break; }
+            }
+            if (!exists) cart.push({ name: name, price: price, quantity: 1 });
+        } else {
+            var found = false;
+            for (var j = 0; j < cart.length; j++) {
+                if (cart[j].name === name && cart[j].price === price) {
+                    cart[j].quantity += 1;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) cart.push({ name: name, price: price, quantity: 1 });
+        }
+        renderCartUI();
+    }
+
+    function addCustomItem() {
+        var nameInput = document.getElementById('custom-name');
+        var priceInput = document.getElementById('custom-price');
+        var name = nameInput.value.replace(/^\s+|\s+$/g, '');
+        var price = parseInt(priceInput.value, 10);
+
+        if (!name || isNaN(price)) return;
+        addToCart(name, price);
+        nameInput.value = '';
+        priceInput.value = '';
+    }
+
+    function changeQty(index, change) {
+        cart[index].quantity += change;
+        if (cart[index].quantity <= 0) {
+            cart.splice(index, 1);
+        }
+        renderCartUI();
+    }
+
+    function deleteItem(index) {
+        cart.splice(index, 1);
+        renderCartUI();
+    }
+
+    function clearCart() {
+        cart = [];
+        renderCartUI();
+    }
+
+    function renderCartUI() {
+        var tbody = document.getElementById('cart-rows');
+        tbody.innerHTML = '';
+        var total = 0;
+
+        var normalItems = [];
+        var freeItems = [];
+
+        for (var i = 0; i < cart.length; i++) {
+            if (cart[i].price === 0) {
+                freeItems.push(cart[i]);
+            } else {
+                normalItems.push({ item: cart[i], originalIndex: i });
+            }
+        }
+
+        for (var n = 0; n < normalItems.length; n++) {
+            var obj = normalItems[n];
+            var item = obj.item;
+            var idx = obj.originalIndex;
+            var subtotal = item.price * item.quantity;
+            total += subtotal;
+
+            var tr = document.createElement('tr');
+            var isDuck = (item.name === '鴨水血');
+            if (isDuck) tr.className = 'duck-row';
+            tr.innerHTML = 
+                '<td>' + (isDuck ? '<span class="duck-star">★</span>' : '') + item.name + '</td>' +
+                '<td>$' + item.price + '</td>' +
+                '<td style="text-align:center;">' +
+                    '<button class="qty-btn" onclick="changeQty(' + idx + ', -1)">-</button> ' +
+                    item.quantity + ' ' +
+                    '<button class="qty-btn" onclick="changeQty(' + idx + ', 1)">+</button>' +
+                '</td>' +
+                '<td>$' + subtotal + ' <button class="del-btn" onclick="deleteItem(' + idx + ')">✕</button></td>';
+            tbody.appendChild(tr);
+        }
+
+        if (freeItems.length > 0) {
+            var trFree = document.createElement('tr');
+            var tdFree = document.createElement('td');
+            tdFree.setAttribute('colspan', '4');
+            
+            var wrapper = document.createElement('div');
+            wrapper.className = 'custom-options-wrapper';
+
+            for (var f = 0; f < freeItems.length; f++) {
+                var fItem = freeItems[f];
+                var origIdx = -1;
+                for (var c = 0; c < cart.length; c++) {
+                    if (cart[c] === fItem) { origIdx = c; break; }
+                }
+
+                var itemSpan = document.createElement('span');
+                itemSpan.className = 'free-tag-item';
+
+                var tagSpan = document.createElement('span');
+                tagSpan.className = 'free-tag';
+                tagSpan.innerHTML = fItem.name;
+
+                var delBtn = document.createElement('button');
+                delBtn.className = 'del-btn';
+                delBtn.style.marginLeft = '2px';
+                delBtn.innerHTML = '✕';
+                (function(indexToRemove) {
+                    delBtn.onclick = function() { deleteItem(indexToRemove); };
+                })(origIdx);
+
+                itemSpan.appendChild(tagSpan);
+                itemSpan.appendChild(delBtn);
+                wrapper.appendChild(itemSpan);
+            }
+
+            tdFree.appendChild(wrapper);
+            trFree.appendChild(tdFree);
+            tbody.appendChild(trFree);
+        }
+
+        document.getElementById('total-price').innerHTML = total;
+        updateDashboardUI();
+    }
+
+    function checkoutAndPrint() {
+        if (checkoutInProgress) return;
+        if (cart.length === 0) {
+            alert('購物車是空的！');
+            return;
+        }
+
+        checkoutInProgress = true;
+        var totalAmount = 0;
+        for (var i = 0; i < cart.length; i++) {
+            totalAmount += cart[i].price * cart[i].quantity;
+        }
+
+        var now = new Date();
+        var timeStr = now.getFullYear() + '-' + 
+                      pad2(now.getMonth() + 1) + '-' + 
+                      pad2(now.getDate()) + ' ' + 
+                      pad2(now.getHours()) + ':' + 
+                      pad2(now.getMinutes()) + ':' + 
+                      pad2(now.getSeconds());
+        
+        document.getElementById('print-time').innerHTML = timeStr;
+
+        commitOrder(totalAmount, cart);
+
+        document.body.className = '';
+        window.print();
+
+        setTimeout(function() {
+            clearCart();
+            // 【需求調整】操作內用或外帶後，下一張單子自動切換回預設「外帶」
+            setOrderType('外帶');
+            updateDashboardUI();
+            checkoutInProgress = false;
+        }, 800);
+    }
+
+    function printDailyReport() {
+        checkAndResetDailyData();
+
+        var todayStr = getTodayDateStr();
+        var formattedDate = todayStr.substring(0, 4) + '/' + todayStr.substring(4, 6) + '/' + todayStr.substring(6, 8);
+        
+        var now = new Date();
+        var timeStr = pad2(now.getHours()) + ':' + 
+                      pad2(now.getMinutes()) + ':' + 
+                      pad2(now.getSeconds());
+
+        var totalOrders = parseInt(safeGet('pos_seq', '0'), 10);
+        var totalSales = parseInt(safeGet('pos_daily_sales', '0'), 10);
+        var takeoutCount = parseInt(safeGet('pos_takeout_count', '0'), 10);
+        var dineinCount = parseInt(safeGet('pos_dinein_count', '0'), 10);
+
+        var orderAmounts = [];
+        try { orderAmounts = JSON.parse(safeGet('pos_order_amounts', '[]')); } catch(e){}
+
+        var avg = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
+        var max = 0;
+        var min = 0;
+
+        if (orderAmounts.length > 0) {
+            max = orderAmounts[0];
+            min = orderAmounts[0];
+            for (var i = 1; i < orderAmounts.length; i++) {
+                if (orderAmounts[i] > max) max = orderAmounts[i];
+                if (orderAmounts[i] < min) min = orderAmounts[i];
+            }
+        }
+
+        document.getElementById('rpt-date').innerHTML = formattedDate;
+        document.getElementById('rpt-time').innerHTML = timeStr;
+        document.getElementById('rpt-orders').innerHTML = totalOrders;
+        document.getElementById('rpt-takeout-count').innerHTML = takeoutCount;
+        document.getElementById('rpt-dinein-count').innerHTML = dineinCount;
+        document.getElementById('rpt-total').innerHTML = totalSales;
+        document.getElementById('rpt-avg').innerHTML = avg;
+        document.getElementById('rpt-max').innerHTML = max;
+        document.getElementById('rpt-min').innerHTML = min;
+
+        var itemStats = {};
+        try { itemStats = JSON.parse(safeGet('pos_daily_items', '{}')); } catch(e){}
+
+        // 將物件轉為陣列以進行排序與過濾
+        var itemList = [];
+        for (var itemName in itemStats) {
+            if (itemStats.hasOwnProperty(itemName)) {
+                var itemData = itemStats[itemName];
+                // 【需求調整】不計 0 元客製化品項：過濾價格或金額為 0 的品項
+                if (itemData.price > 0 && itemData.sales > 0) {
+                    itemList.push({
+                        name: itemName,
+                        qty: itemData.qty,
+                        sales: itemData.sales
+                    });
+                }
+            }
+        }
+
+        // 【需求調整】依照賣出的數量由多到少排序（數量相同時依金額降序）
+        itemList.sort(function(a, b) {
+            if (b.qty !== a.qty) {
+                return b.qty - a.qty; // 數量由大到小
+            }
+            return b.sales - a.sales; // 金額由大到小
+        });
+
+        var rptTbody = document.getElementById('rpt-item-rows');
+        rptTbody.innerHTML = '';
+
+        if (itemList.length === 0) {
+            rptTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">今日無付費商品銷售紀錄</td></tr>';
+        } else {
+            for (var j = 0; j < itemList.length; j++) {
+                var itemObj = itemList[j];
+                var tr = document.createElement('tr');
+                tr.innerHTML = 
+                    '<td>' + itemObj.name + '</td>' +
+                    '<td class="num">' + itemObj.qty + '</td>' +
+                    '<td class="num">$' + itemObj.sales + '</td>';
+                rptTbody.appendChild(tr);
+            }
+        }
+
+        document.body.className = 'printing-daily-report';
+        window.print();
+
+        setTimeout(function() {
+            document.body.className = '';
+        }, 800);
+    }
+
+    // 初始化載入 UI
+    updateDashboardUI();
+</script>
+</body>
+</html>
